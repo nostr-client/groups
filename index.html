@@ -228,8 +228,10 @@
       row.className = 'row'
       const from = document.createElement('span')
       from.className = 'from'
-      from.textContent = npubShort(post.pubkey)
-      profiles().get(post.pubkey, (pr) => {
+      // mirrored mail carries its original author in the attribution footer
+      const mirrored = /✉️ ([^\n]{1,40}?) via /.exec(post.content)?.[1]
+      from.textContent = mirrored ?? npubShort(post.pubkey)
+      if (!mirrored) profiles().get(post.pubkey, (pr) => {
         const d = pr?.display_name || pr?.name
         if (d) from.textContent = d
       })
@@ -240,7 +242,7 @@
       subj.textContent = subject + ' '
       const snip = document.createElement('span')
       snip.className = 'snip'
-      snip.textContent = '— ' + post.content.replace(/\s+/g, ' ').slice(0, 90)
+      snip.textContent = '— ' + post.content.split('\n—\n')[0].replace(/\s+/g, ' ').slice(0, 90)
       subj.append(snip)
       const n = document.createElement('span')
       n.className = 'n'
