@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85'>📬</text></svg>">
+<meta property="og:title" content="groups — mailing lists on nostr">
+<meta property="og:description" content="Google-Groups-style communities with a Gmail-style reader. NIP-72 on public relays — no group server, no signup.">
+<meta property="og:url" content="https://nostr-client.github.io/groups/">
+<meta property="og:image" content="https://nostr-client.github.io/groups/og.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="nostr-client">
+<meta name="twitter:card" content="summary_large_image">
+<title>groups — mailing lists on nostr</title>
+<link rel="stylesheet" href="https://nostr-client.github.io/theme/theme.css">
+<style>
+  :root { --nc-accent: #1a73e8; --nc-accent-soft: #e8f0fe; --nc-bg: #f6f8fc;
+    --nc-surface: #ffffff; --nc-radius: 14px; }
+  body { margin: 0; }
+  .app { display: grid; grid-template-columns: 16rem minmax(0, 1fr); height: 100vh; }
+
+  /* rail */
+  .rail { padding: 1rem .8rem; display: flex; flex-direction: column; gap: .2rem;
+    overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: .6rem; font-weight: 700;
+    font-size: 1.15rem; padding: .3rem .6rem 1rem; color: var(--nc-ink);
+    text-decoration: none; }
+  .compose { font: inherit; font-weight: 600; cursor: pointer; display: flex;
+    align-items: center; gap: .7rem; background: var(--nc-surface); color: var(--nc-ink);
+    border: none; border-radius: 999px; padding: .8em 1.4em; margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgb(26 115 232 / 25%), 0 1px 2px rgb(0 0 0 / 8%); width: fit-content; }
+  .compose:hover { box-shadow: 0 2px 6px rgb(26 115 232 / 30%); }
+  .rail h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--nc-faint); margin: .8rem .6rem .3rem; }
+  .rail button.g { font: inherit; font-size: .9rem; text-align: left; cursor: pointer;
+    display: flex; gap: .6rem; align-items: center; border: none; background: none;
+    color: var(--nc-ink); padding: .5rem .8rem; border-radius: 0 999px 999px 0; }
+  .rail button.g:hover { background: rgb(0 0 0 / 5%); }
+  .rail button.g.active { background: var(--nc-accent-soft); color: var(--nc-accent);
+    font-weight: 700; }
+  .rail button.g .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .rail button.g .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex: 1; }
+  .rail .foot { font-size: .72rem; color: var(--nc-faint); padding: 1rem .6rem; }
+  .rail .foot a { color: inherit; }
+
+  /* main */
+  main { background: var(--nc-surface); border-radius: 16px 0 0 0;
+    border: 1px solid var(--nc-line); border-right: none; border-bottom: none;
+    display: flex; flex-direction: column; min-height: 0; }
+  .topbar { display: flex; align-items: center; gap: 1rem; padding: .8rem 1.2rem;
+    border-bottom: 1px solid var(--nc-line); }
+  .topbar .title { font-weight: 700; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .topbar .about { font-size: .8rem; color: var(--nc-soft); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .topbar .back { font: inherit; border: none; background: none; cursor: pointer;
+    font-size: 1.05rem; color: var(--nc-soft); border-radius: 50%; padding: .2rem .5rem; }
+  .topbar .back:hover { background: var(--nc-inset); }
+  .scroll { overflow-y: auto; flex: 1; min-height: 0; }
+
+  /* thread list — the gmail rows */
+  .row { display: flex; gap: .9rem; align-items: baseline; padding: .7rem 1.2rem;
+    border-bottom: 1px solid var(--nc-line); cursor: pointer; font-size: .9rem; }
+  .row:hover { box-shadow: inset 0 0 0 999px rgb(0 0 0 / 2.5%); }
+  .row .from { flex: none; width: 10rem; font-weight: 700; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .row .subj { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; }
+  .row .subj .snip { color: var(--nc-soft); font-weight: 400; }
+  .row .when { flex: none; font-size: .78rem; color: var(--nc-faint); }
+  .row .n { flex: none; font-size: .75rem; color: var(--nc-soft);
+    background: var(--nc-inset); border-radius: 999px; padding: .1em .6em; }
+  .quiet { color: var(--nc-soft); padding: 2.4rem; text-align: center; }
+
+  .pad { padding: 1.2rem; }
+  .subject { font-size: 1.25rem; font-weight: 700; margin: 0 0 .8rem; }
+  form.new { display: grid; gap: .6rem; max-width: 38rem; }
+  form.new input, form.new textarea { font: inherit; padding: .6em .8em;
+    border-radius: 8px; border: 1px solid var(--nc-line); background: var(--nc-surface);
+    color: inherit; width: 100%; box-sizing: border-box; }
+  form.new textarea { min-height: 9em; line-height: 1.5; }
+  form.new button { font: inherit; font-weight: 600; cursor: pointer; border: none;
+    border-radius: 999px; padding: .6em 1.6em; background: var(--nc-accent); color: #fff;
+    justify-self: start; }
+  .status { font-size: .82rem; color: var(--nc-soft); }
+  .join { font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--nc-accent); color: var(--nc-accent); background: none;
+    border-radius: 999px; padding: .35em 1em; flex: none; }
+  .join.on { background: var(--nc-accent-soft); }
+  @media (max-width: 760px) { .app { grid-template-columns: 1fr; }
+    .rail { flex-direction: row; flex-wrap: wrap; overflow-x: auto; }
+    main { border-radius: 0; } .row .from { width: 6.5rem; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <a class="brand" href="https://github.com/nostr-client/groups">📬 groups</a>
+    <button class="compose" id="newthread">✏️ New thread</button>
+    <h3>Your groups</h3>
+    <div id="mine"><div class="foot">join groups from Discover</div></div>
+    <h3>Discover</h3>
+    <div id="discover"><div class="foot">finding communities…</div></div>
+    <div class="foot">mailing lists on nostr (NIP-72) — no server, works with
+      Satellite &amp; friends · <a href="https://nostr-client.github.io/">nostr-client</a></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <button class="back" id="back" hidden>←</button>
+      <span class="title" id="title">Pick a group</span>
+      <span class="about" id="about"></span>
+      <button class="join" id="join" hidden>Join</button>
+      <nostr-login></nostr-login>
+    </div>
+    <div class="scroll" id="view"><div class="quiet">← choose a group, or hit
+      New thread to start a discussion anywhere</div></div>
+  </main>
+</div>
+
+<script type="module">
+  {
+    const { Pool } = await import('https://nostr-client.github.io/pool/pool.js')
+    const { withVerify } = await import('https://nostr-client.github.io/verify/verify.js')
+    const { withCache } = await import('https://nostr-client.github.io/cache/cache.js')
+    globalThis.__nostrClientPool = withCache(withVerify(new Pool()))
+  }
+  await Promise.all(['login/login.js', 'thread/thread.js', 'note/note.js']
+    .map((path) => import('https://nostr-client.github.io/' + path)))
+  const { defaultPool } = await import('https://nostr-client.github.io/pool/pool.js')
+  const { profiles, formatAgo } = await import('https://nostr-client.github.io/note/note.js')
+  const { npubShort } = await import('https://nostr-client.github.io/nip19/nip19.js')
+
+  const $ = (id) => document.getElementById(id)
+  const pool = defaultPool()
+  const groups = new Map()   // addr -> { name, about, pubkey, d }
+  let current = null         // addr
+  let joined = new Set(JSON.parse(localStorage.getItem('groups:joined') || '[]'))
+
+  const addrOf = (ev) => '34550:' + ev.pubkey + ':' + (ev.tags.find((t) => t[0] === 'd')?.[1] ?? '')
+  const hueOf = (s) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7)
+
+  // ---------------- rails ----------------
+  function groupButton(addr) {
+    const g = groups.get(addr)
+    const b = document.createElement('button')
+    b.className = 'g' + (addr === current ? ' active' : '')
+    const dot = document.createElement('span')
+    dot.className = 'dot'
+    dot.style.background = `hsl(${hueOf(addr)} 62% 52%)`
+    const nm = document.createElement('span')
+    nm.className = 'nm'
+    nm.textContent = g?.name || addr.split(':')[2] || 'unnamed'
+    b.append(dot, nm)
+    b.onclick = () => openGroup(addr)
+    return b
+  }
+
+  function paintRails() {
+    const mine = $('mine')
+    mine.innerHTML = ''
+    if (!joined.size) mine.innerHTML = '<div class="foot">join groups from Discover</div>'
+    for (const addr of joined) mine.append(groupButton(addr))
+    const disc = $('discover')
+    disc.innerHTML = ''
+    for (const addr of [...groups.keys()].filter((a) => !joined.has(a)).slice(0, 25)) {
+      disc.append(groupButton(addr))
+    }
+  }
+
+  function saveJoined() {
+    localStorage.setItem('groups:joined', JSON.stringify([...joined]))
+    // publish as NIP-51 communities list when a signer is around
+    const signer = window.nostrSigner
+    if (signer) {
+      signer.signEvent({
+        kind: 10004, created_at: Math.floor(Date.now() / 1000),
+        tags: [...joined].map((a) => ['a', a]), content: '',
+      }).then((ev) => pool.publish(ev)).catch(() => {})
+    }
+  }
+
+  // ---------------- group view: gmail-style thread list ----------------
+  async function openGroup(addr, { push = true } = {}) {
+    current = addr
+    if (push) history.pushState({}, '', '#' + addr)
+    const g = groups.get(addr)
+    $('title').textContent = g?.name || addr.split(':')[2]
+    $('about').textContent = g?.about || ''
+    $('back').hidden = true
+    const join = $('join')
+    join.hidden = false
+    const paintJoin = () => {
+      join.textContent = joined.has(addr) ? '✓ Joined' : 'Join'
+      join.classList.toggle('on', joined.has(addr))
+    }
+    paintJoin()
+    join.onclick = () => { joined.has(addr) ? joined.delete(addr) : joined.add(addr); saveJoined(); paintJoin(); paintRails() }
+    paintRails()
+
+    const view = $('view')
+    view.innerHTML = '<div class="quiet">loading threads…</div>'
+    const posts = await pool.list([
+      { kinds: [1, 1111], '#a': [addr], limit: 100 },
+      { kinds: [1, 1111], '#A': [addr], limit: 100 },
+    ], { timeout: 6000 })
+    if (current !== addr) return
+
+    // roots = posts that don't reply to another event; replies counted per root
+    const byId = new Map(posts.map((p) => [p.id, p]))
+    const replyCount = new Map()
+    const roots = []
+    for (const p of posts) {
+      const parent = p.tags.find((t) => (t[0] === 'e' || t[0] === 'E') && /^[0-9a-f]{64}$/.test(t[1] ?? ''))?.[1]
+      if (parent) replyCount.set(parent, (replyCount.get(parent) ?? 0) + 1)
+      else roots.push(p)
+    }
+    roots.sort((a, b) => b.created_at - a.created_at)
+
+    view.innerHTML = ''
+    if (!roots.length) {
+      view.innerHTML = '<div class="quiet">No threads yet — start the first one ✏️</div>'
+      return
+    }
+    for (const post of roots.slice(0, 60)) {
+      const row = document.createElement('div')
+      row.className = 'row'
+      const from = document.createElement('span')
+      from.className = 'from'
+      from.textContent = npubShort(post.pubkey)
+      profiles().get(post.pubkey, (pr) => {
+        const d = pr?.display_name || pr?.name
+        if (d) from.textContent = d
+      })
+      const subj = document.createElement('span')
+      subj.className = 'subj'
+      const subject = post.tags.find((t) => t[0] === 'subject')?.[1]
+        ?? post.content.split('\n')[0].slice(0, 70)
+      subj.textContent = subject + ' '
+      const snip = document.createElement('span')
+      snip.className = 'snip'
+      snip.textContent = '— ' + post.content.replace(/\s+/g, ' ').slice(0, 90)
+      subj.append(snip)
+      const n = document.createElement('span')
+      n.className = 'n'
+      const rc = replyCount.get(post.id) ?? 0
+      n.textContent = rc ? rc + ' ↩' : 'new'
+      const when = document.createElement('span')
+      when.className = 'when'
+      when.textContent = formatAgo(post.created_at)
+      row.append(from, subj, n, when)
+      row.onclick = () => openThread(post)
+      view.append(row)
+    }
+  }
+
+  // ---------------- thread view (reuses nostr-thread) ----------------
+  function openThread(post) {
+    $('back').hidden = false
+    $('back').onclick = () => openGroup(current, { push: false })
+    const view = $('view')
+    view.innerHTML = ''
+    const pad = document.createElement('div')
+    pad.className = 'pad'
+    const subject = post.tags.find((t) => t[0] === 'subject')?.[1]
+    if (subject) {
+      const h = document.createElement('h2')
+      h.className = 'subject'
+      h.textContent = subject
+      pad.append(h)
+    }
+    const thread = document.createElement('nostr-thread')
+    thread.setAttribute('event-id', post.id)
+    pad.append(thread)
+    view.append(pad)
+    view.scrollTop = 0
+  }
+
+  // ---------------- compose ----------------
+  $('newthread').onclick = () => {
+    $('back').hidden = false
+    $('back').onclick = () => current ? openGroup(current, { push: false }) : location.reload()
+    const view = $('view')
+    view.innerHTML = ''
+    const pad = document.createElement('div')
+    pad.className = 'pad'
+    const h = document.createElement('h2')
+    h.className = 'subject'
+    h.textContent = 'New thread' + (current && groups.get(current) ? ' in ' + groups.get(current).name : '')
+    const form = document.createElement('form')
+    form.className = 'new'
+    const subject = document.createElement('input')
+    subject.placeholder = 'Subject'
+    const body = document.createElement('textarea')
+    body.placeholder = 'Write your message…'
+    const send = document.createElement('button')
+    send.textContent = 'Post thread'
+    const status = document.createElement('div')
+    status.className = 'status'
+    if (!current) status.textContent = 'tip: pick a group first — otherwise this posts as a plain note'
+    form.append(subject, body, send, status)
+    form.onsubmit = async (e) => {
+      e.preventDefault()
+      if (!window.nostrSigner) { status.textContent = '✗ log in first (top right)'; return }
+      if (!body.value.trim()) return
+      send.disabled = true
+      status.textContent = 'publishing…'
+      try {
+        const tags = []
+        if (subject.value.trim()) tags.push(['subject', subject.value.trim()])
+        if (current) tags.push(['a', current], ['A', current], ['K', '34550'])
+        const ev = await window.nostrSigner.signEvent({
+          kind: 1, created_at: Math.floor(Date.now() / 1000), tags,
+          content: body.value.trim(),
+        })
+        const results = await pool.publish(ev)
+        if (!results.some((r) => r.ok)) throw new Error('no relay accepted it')
+        status.textContent = '✓ posted'
+        if (current) setTimeout(() => openGroup(current, { push: false }), 800)
+      } catch (err) {
+        status.textContent = '✗ ' + (err.message || err)
+      } finally { send.disabled = false }
+    }
+    pad.append(h, form)
+    view.append(pad)
+  }
+
+  // ---------------- discover communities ----------------
+  const defs = await pool.list([{ kinds: [34550], limit: 60 }], { timeout: 7000 })
+  for (const ev of defs) {
+    const addr = addrOf(ev)
+    if (groups.has(addr)) continue
+    groups.set(addr, {
+      pubkey: ev.pubkey,
+      d: ev.tags.find((t) => t[0] === 'd')?.[1] ?? '',
+      name: ev.tags.find((t) => t[0] === 'name')?.[1] ?? ev.tags.find((t) => t[0] === 'd')?.[1],
+      about: ev.tags.find((t) => t[0] === 'description')?.[1] ?? '',
+    })
+  }
+  paintRails()
+
+  // restore user's published list when they log in
+  window.addEventListener('nostr:login', async (e) => {
+    const list = await pool.get({ kinds: [10004], authors: [e.detail.pubkey] })
+    for (const t of list?.tags ?? []) if (t[0] === 'a' && t[1]?.startsWith('34550:')) joined.add(t[1])
+    localStorage.setItem('groups:joined', JSON.stringify([...joined]))
+    paintRails()
+  })
+
+  const initial = decodeURIComponent(location.hash.slice(1))
+  if (initial.startsWith('34550:')) {
+    if (!groups.has(initial)) groups.set(initial, { name: initial.split(':')[2] })
+    openGroup(initial, { push: false })
+  }
+</script>
+</body>
+</html>
