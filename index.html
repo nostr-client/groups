@@ -120,12 +120,8 @@
 </div>
 
 <script type="module">
-  {
-    const { Pool } = await import('https://nostr-client.github.io/pool/pool.js')
-    const { withVerify } = await import('https://nostr-client.github.io/verify/verify.js')
-    const { withCache } = await import('https://nostr-client.github.io/cache/cache.js')
-    globalThis.__nostrClientPool = withCache(withVerify(new Pool()))
-  }
+  // hardened default pool: verified events, local cache, saved relays
+  await import('https://nostr-client.github.io/setup/setup.js')
   await Promise.all(['login/login.js', 'thread/thread.js', 'note/note.js']
     .map((path) => import('https://nostr-client.github.io/' + path)))
   const { defaultPool } = await import('https://nostr-client.github.io/pool/pool.js')
